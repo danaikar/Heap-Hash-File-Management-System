@@ -4,7 +4,7 @@
 
 #include "bf.h"
 #include "hp_file.h"
-#define MAX_OPEN_FILES 20
+#include "record.h"
 
 #define CALL_BF(call)       \
 {                           \
@@ -15,88 +15,131 @@
   }                         \
 }
 
+int HP_CreateFile(char *fileName) {
+
+    int fd;
+	char *heapID = "HeapFile", *data;
+	BF_Block *block;
+	BF_ErrorCode err;
+
+	err = BF_CreateFile(fileName);	
+	if(err != BF_OK){	
+		BF_PrintError(err);
+		return -1;
+	}
+	
+	err = BF_OpenFile(fileName, &fd);  
+	if(err != BF_OK){
+		BF_PrintError(err);
+		return -2;
+	}
 
 
-int HP_CreateFile(char *fileName, Record_Attribute attr){
-    if(attr < 0 || attr > 3)
-        return -3;
+	// allocate a block 
+	// this block will be the header
+	BF_Block_Init(&block);
+	err = BF_AllocateBlock(fd, block);
+	if(err != BF_OK){
+		BF_PrintError(err);
+		return -3;
+	}
+	
 
-    if(BF_CreateFile(fileName) == BF_ERROR)
-        return -1;
-
-    int fd1;
-    if(BF_OpenFile(fileName, &fd1) == BF_ERROR)
-        return -2;
-
-    BF_Block *block;
-    BF_Block_Init(&block);
-
-    if(BF_AllocateBlock(fd1, block) == BF_ERROR)
-        return -4;
-
-    char* data;
-    data = BF_Block_GetData(block);
-
-    int blkCnt = BF_GetBlockCounter(fd1, &blkCnt);
-    printf("File has %d blocks\n", blkCnt);
-
-    if(BF_GetBlock(fd1, blkCnt-1, block) < 0) {
-        return -1;
-    }
-
-    // initialize the HP_info 
-    HP_info info;
-    info.attr = attr;
-    info.IS_HP = 1;
-
-    // and save it at the first block
-    memcpy(block, &info, sizeof(HP_info));
-    BF_Block_SetDirty(block);  
-
-    
-    blkCnt = BF_GetBlockCounter(fd1, &blkCnt);
-    printf("File has %d blocks\n", blkCnt);
+	// copy a string-identifier "HeapFile" there
+	data = BF_Block_GetData(block);		
+	memcpy(data, heapID, 9);	
 
 
-    
-    if(BF_CloseFile(fd1) == BF_ERROR)
-        return -5;
-    
-    return 100;
+
+	BF_Block_SetDirty(block);
+	
+	err = BF_UnpinBlock(block);
+	if(err != BF_OK){
+		BF_PrintError(err);
+		return -4;
+	}
+	
+	err = BF_CloseFile(fd);
+	if(err != BF_OK){
+		BF_PrintError(err);
+		return -5;
+	}
+	
+	BF_Block_Destroy(&block);
+ 	return 100;
 }
 
 
 
+HP_info* HP_OpenFile(char *fileName) {
+
+    char *data, testHeap[9];
+	BF_Block *block;
+	BF_ErrorCode err;
+	int fd;
+
+	if ((err = BF_OpenFile(fileName, &fd) != BF_OK) ) {
+		BF_PrintError(err);
+		return NULL;
+	}
+
+	// initialize a block as a copy of the header block
+	BF_Block_Init(&block);	
+	err = BF_GetBlock(fd, 0, block);	
+	if(err != BF_OK){
+		BF_PrintError(err);
+		return NULL;
+	}
+
+	// check if it is a heap file.
+	data = BF_Block_GetData(block);	
+	memcpy(testHeap, data, 9);
+	if(strcmp(testHeap, "HeapFile") != 0) {		
+		printf("This file is not a HeapFile.\n");
+		return NULL;
+	}
+	
 
 
-HP_info* HP_OpenFile(char *fileName){
-
-    int fd1;
-
-    if(BF_OpenFile(fileName, &fd1) == BF_ERROR)
-        return NULL;
-    printf("ok\n");
-
-      
+	err = BF_UnpinBlock(block);
+	if(err != BF_OK){
+		BF_PrintError(err);
+		return NULL;
+	}	
+	BF_Block_Destroy(&block);
 
 
+	// Create the struct HP_info and initialize it 
+	HP_info *info = malloc(sizeof(HP_info));
+	info->IsHP = 1;
+    info->fileDesc = fd;
 
-    HP_info *info = malloc(sizeof(HP_info));
-    return info;
+	return info;
 }
 
 
+int HP_CloseFile( HP_info* hp_info ) {
 
+	int fd = hp_info->fileDesc;
 
-int HP_CloseFile( HP_info header_info ){
-    return -1;
+	int err;
+	if((err = BF_CloseFile(fd)) != BF_OK) { 
+		BF_PrintError(err);
+		return -6;
+	}
+	printf("\nClosed file %d.\n",fd);
+
+	// when a file is being closed we should free the allocated struct
+	free(hp_info); 
+
+    return 0;
 }
 
-int HP_InsertEntry(HP_info header_info, Record record){
-    return -1;
+int HP_InsertEntry(HP_info* hp_info, Record record) {
+    return 0;
 }
 
-int HP_GetAllEntries(HP_info header_info, void *value ){
-    return -1;
+int HP_GetAllEntries(HP_info* hp_info, int value) {
+   return 0;
 }
 
