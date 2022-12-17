@@ -6,13 +6,13 @@
 #include "hp_file.h"
 #include "record.h"
 
-#define CALL_BF(call)       \
-{                           \
-  BF_ErrorCode code = call; \
-  if (code != BF_OK) {      \
-    BF_PrintError(code);    \
-    return HP_ERROR;        \
-  }                         \
+#define CALL_OR_DIE(call)     \
+{                             \
+    BF_ErrorCode code = call; \
+    if (code != BF_OK) {      \
+        BF_PrintError(code);  \
+        exit(code);           \
+    }                         \
 }
 
 
@@ -23,48 +23,26 @@ int HP_CreateFile(char *fileName) {
 	BF_Block *block;
 	BF_ErrorCode err;
 
-	err = BF_CreateFile(fileName);	
-	if(err != BF_OK){	
-		BF_PrintError(err);
-		return -1;
-	}
 	
-	err = BF_OpenFile(fileName, &fd);  
-	if(err != BF_OK){
-		BF_PrintError(err);
-		return -2;
-	}
-
+	CALL_OR_DIE(BF_CreateFile(fileName));
+	CALL_OR_DIE(BF_OpenFile(fileName, &fd));  
+	
 
 	// allocate a block 
 	// this block will be the header
 	BF_Block_Init(&block);
-	err = BF_AllocateBlock(fd, block);
-	if(err != BF_OK){
-		BF_PrintError(err);
-		return -3;
-	}
-	
+	CALL_OR_DIE(BF_AllocateBlock(fd, block));
+
 
 	// copy a string-identifier "HeapFile" there
 	data = BF_Block_GetData(block);		
 	memcpy(data, heapID, 9);	
 
-
-
 	BF_Block_SetDirty(block);
 	
-	err = BF_UnpinBlock(block);
-	if(err != BF_OK){
-		BF_PrintError(err);
-		return -4;
-	}
+	CALL_OR_DIE(BF_UnpinBlock(block));
 	
-	err = BF_CloseFile(fd);
-	if(err != BF_OK){
-		BF_PrintError(err);
-		return -5;
-	}
+	CALL_OR_DIE(BF_CloseFile(fd));
 	
 	BF_Block_Destroy(&block);
  	return 100;
@@ -83,18 +61,12 @@ HP_info* HP_OpenFile(char *fileName) {
 	BF_ErrorCode err;
 	int fd;
 
-	if ((err = BF_OpenFile(fileName, &fd) != BF_OK) ) {
-		BF_PrintError(err);
-		return NULL;
-	}
+	CALL_OR_DIE(BF_OpenFile(fileName, &fd) != BF_OK);
 
 	// initialize a block as a copy of the header block
 	BF_Block_Init(&block);	
-	err = BF_GetBlock(fd, 0, block);	
-	if(err != BF_OK){
-		BF_PrintError(err);
-		return NULL;
-	}
+	CALL_OR_DIE(BF_GetBlock(fd, 0, block));	
+	
 
 	// check if it is a heap file.
 	data = BF_Block_GetData(block);	
@@ -106,11 +78,7 @@ HP_info* HP_OpenFile(char *fileName) {
 	
 
 
-	err = BF_UnpinBlock(block);
-	if(err != BF_OK){
-		BF_PrintError(err);
-		return NULL;
-	}	
+	CALL_OR_DIE(BF_UnpinBlock(block));
 	BF_Block_Destroy(&block);
 
 
@@ -131,11 +99,7 @@ int HP_CloseFile( HP_info* hp_info ) {
 
 	int fd = hp_info->fileDesc;
 
-	int err;
-	if((err = BF_CloseFile(fd)) != BF_OK) { 
-		BF_PrintError(err);
-		return -6;
-	}
+	CALL_OR_DIE(BF_CloseFile(fd));
 	printf("\nClosed file %d.\n",fd);
 
 	// when a file is being closed we should free the allocated struct
@@ -153,30 +117,18 @@ int HP_InsertEntry(HP_info* hp_info, Record record) {
 	int fd = hp_info->fileDesc;
 	char *fileName = hp_info->name;
 
-	BF_ErrorCode err;
-	if ((err = BF_OpenFile(fileName, &fd) != BF_OK) ) {
-		BF_PrintError(err);
-		return -9;
-	}
+	CALL_OR_DIE(BF_OpenFile(fileName, &fd));
 
 	int count;
-	if(err = BF_GetBlockCounter(fd, &count) != BF_OK) { 
-		BF_PrintError(err);
-		return -7;
-	}		
+	CALL_OR_DIE(BF_GetBlockCounter(fd, &count));
 	printf("Num of blocks: %d\n", count);
-
 
 
 	if(count == 1) {
 		printf("Make a new block.\n");
 		BF_Block *block;
 		BF_Block_Init(&block);
-		err = BF_AllocateBlock(fd, block);
-		if(err != BF_OK){
-			BF_PrintError(err);
-			return -3;
-		}
+		CALL_OR_DIE(BF_AllocateBlock(fd, block));
 
 		BF_GetBlock(fd, 1, block);
 		int* data = (int*)(BF_Block_GetData(block));
@@ -195,16 +147,12 @@ int HP_InsertEntry(HP_info* hp_info, Record record) {
 	printf("data[0] = %d\n", recordCount);
 
 	int blockCapacity = (BF_BLOCK_SIZE-sizeof(int))/(sizeof(Record));
-	printf(" == %ld\n", blockCapacity);
+	printf(" == %d\n", blockCapacity);
 
 	if(blockCapacity == recordCount) {
 		printf("Should create new\n");
 		
-		err = BF_AllocateBlock(fd, block);
-		if(err != BF_OK){
-			BF_PrintError(err);
-			return -3;
-		}
+		CALL_OR_DIE(BF_AllocateBlock(fd, block));
 		
 		BF_GetBlockCounter(fd, &count);
 		BF_GetBlock(fd, count-1, block);
@@ -257,7 +205,7 @@ int HP_GetAllEntries(HP_info* hp_info, int value) {
 		int recCount = *(int*)data;
 		for (int j = 0; j < recCount; ++j) { 
 			
-			//if(rec[j].id == value) 
+			if(rec[j].id == value) 
 				printRecord(rec[j]);
 		}
 	}
