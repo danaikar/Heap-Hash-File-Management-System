@@ -6,7 +6,7 @@
 
 /* Η δομή HP_info κρατάει μεταδεδομένα που σχετίζονται με το αρχείο σωρού*/
 typedef struct {
-    int IsHP;
+    int fileType;
     int fileDesc;
     char *name;
 } HP_info;
