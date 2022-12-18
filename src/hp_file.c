@@ -32,11 +32,13 @@ int HP_CreateFile(char *fileName) {
 	// this block will be the header
 	BF_Block_Init(&block);
 	CALL_OR_DIE(BF_AllocateBlock(fd, block));
-
+	
 
 	// copy a string-identifier "HeapFile" there
-	data = BF_Block_GetData(block);		
-	memcpy(data, heapID, 9);	
+	data = BF_Block_GetData(block);	
+	*(HP_info*)data = (HP_info){0, fd, fileName};
+	
+	//memcpy(data, heapID, 9);	
 
 	BF_Block_SetDirty(block);
 	
@@ -84,7 +86,7 @@ HP_info* HP_OpenFile(char *fileName) {
 
 	// Create the struct HP_info and initialize it 
 	HP_info *info = malloc(sizeof(HP_info));
-	info->IsHP = 1;
+	info->fileType = 1;
     info->fileDesc = fd;
 	info->name = fileName;
 
@@ -133,8 +135,8 @@ int HP_InsertEntry(HP_info* hp_info, Record record) {
 		BF_GetBlock(fd, 1, block);
 		int* data = (int*)(BF_Block_GetData(block));
 		data[0] = 0;
-		BF_Block_SetDirty(block); //TODO
-		BF_UnpinBlock(block);		 
+		// BF_Block_SetDirty(block); //TODO
+		// BF_UnpinBlock(block);		 
 	}
 	
 	BF_Block *block;
@@ -158,8 +160,8 @@ int HP_InsertEntry(HP_info* hp_info, Record record) {
 		BF_GetBlock(fd, count-1, block);
 		int* data = (int*)(BF_Block_GetData(block));
 		data[0] = 0;
-		BF_Block_SetDirty(block); //TODO
-		BF_UnpinBlock(block);
+		// BF_Block_SetDirty(block); //TODO
+		// BF_UnpinBlock(block);
 	}
 
 	BF_GetBlockCounter(fd, &count);
@@ -203,7 +205,7 @@ int HP_GetAllEntries(HP_info* hp_info, int value) {
 		Record* rec = data+sizeof(int);
 		
 		int recCount = *(int*)data;
-		for (int j = 0; j < recCount; ++j) { 
+		for (int j = 1; j < recCount+1; ++j) { 
 			
 			if(rec[j].id == value) 
 				printRecord(rec[j]);
