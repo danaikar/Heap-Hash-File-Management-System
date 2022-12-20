@@ -19,7 +19,7 @@
 int HP_CreateFile(char *fileName) {
 
     int fd;
-	char *heapID = "HeapFile", *data;
+	char *data;
 	BF_Block *block;
 	BF_ErrorCode err;
 
@@ -38,8 +38,6 @@ int HP_CreateFile(char *fileName) {
 	data = BF_Block_GetData(block);	
 	*(HP_info*)data = (HP_info){0, fd, fileName};
 	
-	//memcpy(data, heapID, 9);	
-
 	BF_Block_SetDirty(block);
 	
 	CALL_OR_DIE(BF_UnpinBlock(block));
@@ -57,8 +55,7 @@ int HP_CreateFile(char *fileName) {
 
 
 HP_info* HP_OpenFile(char *fileName) {
-
-    char *data, testHeap[9];
+    char testHeap[9];
 	BF_Block *block;
 	BF_ErrorCode err;
 	int fd;
@@ -71,26 +68,16 @@ HP_info* HP_OpenFile(char *fileName) {
 	
 
 	// check if it is a heap file.
-	data = BF_Block_GetData(block);	
-	memcpy(testHeap, data, 9);
-	if(strcmp(testHeap, "HeapFile") != 0) {		
-		printf("This file is not a HeapFile.\n");
+	HP_info* data = (HP_info*)BF_Block_GetData(block);	
+	if(data->fileType != 1) {		
+		printf("This file is not a HashFile.\n");
 		return NULL;
 	}
-	
-
 
 	CALL_OR_DIE(BF_UnpinBlock(block));
 	BF_Block_Destroy(&block);
 
-
-	// Create the struct HP_info and initialize it 
-	HP_info *info = malloc(sizeof(HP_info));
-	info->fileType = 1;
-    info->fileDesc = fd;
-	info->name = fileName;
-
-	return info;
+	return data;
 }
 
 
@@ -98,15 +85,9 @@ HP_info* HP_OpenFile(char *fileName) {
 
 
 int HP_CloseFile( HP_info* hp_info ) {
-
 	int fd = hp_info->fileDesc;
-
 	CALL_OR_DIE(BF_CloseFile(fd));
 	printf("\nClosed file %d.\n",fd);
-
-	// when a file is being closed we should free the allocated struct
-	free(hp_info); 
-
     return 0;
 }
 
@@ -135,8 +116,8 @@ int HP_InsertEntry(HP_info* hp_info, Record record) {
 		BF_GetBlock(fd, 1, block);
 		int* data = (int*)(BF_Block_GetData(block));
 		data[0] = 0;
-		// BF_Block_SetDirty(block); //TODO
-		// BF_UnpinBlock(block);		 
+		BF_Block_SetDirty(block); //TODO
+		BF_UnpinBlock(block);		 
 	}
 	
 	BF_Block *block;
@@ -181,10 +162,11 @@ int HP_InsertEntry(HP_info* hp_info, Record record) {
 
 
 
-
+// TODO: na kanei return.......
 
 int HP_GetAllEntries(HP_info* hp_info, int value) {
-
+	
+	int ans = 0;
 	BF_Block *block;
 	BF_Block_Init(&block);
     void* data;
@@ -210,13 +192,14 @@ int HP_GetAllEntries(HP_info* hp_info, int value) {
 			if(rec[j].id == value) 
 				printRecord(rec[j]);
 		}
+		ans++;
 	}
 	
-	BF_UnpinBlock(block);
+	// BF_UnpinBlock(block);
 	BF_Block_Destroy(&block);
-	BF_CloseFile(fd);
-	BF_Close();
+	// BF_CloseFile(fd);
+	// BF_Close();
 
-	return 0;
+	return ans;
 }
 
