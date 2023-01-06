@@ -11,6 +11,10 @@ typedef struct {
     char *name;
 } HP_info;
 
+typedef struct {
+    int data;
+} HP_block_info;
+
 /*Η συνάρτηση HP_CreateFile χρησιμοποιείται για τη δημιουργία και
 κατάλληλη αρχικοποίηση ενός άδειου αρχείου σωρού με όνομα fileName.
 Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται 0, ενώ σε
