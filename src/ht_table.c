@@ -13,7 +13,7 @@
     BF_ErrorCode code = call; \
     if (code != BF_OK) {      \
         BF_PrintError(code);  \
-        exit(code);           \
+        exit(-1);             \
     }                         \
 }
 
@@ -21,7 +21,7 @@
 int HT_CreateFile(char *fileName,  int buckets) {
 	int fileDesc;
     BF_Block *block;
-    char *hashID = "HashFile", *data;
+    char *data;
 
     CALL_OR_DIE(BF_CreateFile(fileName));
     CALL_OR_DIE(BF_OpenFile(fileName, &fileDesc));
@@ -31,12 +31,10 @@ int HT_CreateFile(char *fileName,  int buckets) {
     BF_Block_Init(&block);
 	CALL_OR_DIE(BF_AllocateBlock(fileDesc, block));
 
-    // copy a string-identifier "HashFile" there
 	data = BF_Block_GetData(block);
 	
 	HT_info temp;
-	
-	for (int i=0; i<buckets; i++) {
+	for (int i = 0; i < buckets; i++) {
 		temp.bucket_end[i] = -1; // no blocks for this bucket yet
 	}
 
@@ -44,22 +42,12 @@ int HT_CreateFile(char *fileName,  int buckets) {
 	temp.fileDesc = fileDesc;
 	temp.name = fileName;
 	temp.buckets = buckets;
-	temp.headerBlock = 0;
 	temp.recordsPerBlock = (BF_BLOCK_SIZE-sizeof(HT_block_info)) / sizeof(Record);
 	
 	*(HT_info*)data = temp;
 
     BF_Block_SetDirty(block);
 	CALL_OR_DIE(BF_UnpinBlock(block));
-
-	// for (int i=1; i<=buckets; i++) {
-	// 	CALL_OR_DIE(BF_AllocateBlock(fileDesc, block));
-	// 	data = BF_Block_GetData(block);
-	// 	*(HT_block_info*)data = (HT_block_info){0, -1, i-1};
-	// 	BF_Block_SetDirty(block);
-	// 	CALL_OR_DIE(BF_UnpinBlock(block));
-	// }
-
 	BF_Block_Destroy(&block);
 	BF_CloseFile(fileDesc);
  	return 0;
@@ -71,11 +59,11 @@ HT_info* HT_OpenFile(char *fileName) {
 	BF_ErrorCode err;
 	int fd;
 
-	CALL_OR_DIE(BF_OpenFile(fileName, &fd) != BF_OK);
+	if(BF_OpenFile(fileName, &fd) != BF_OK) return NULL;
 
 	// initialize a block as a copy of the header block
 	BF_Block_Init(&block);	
-	CALL_OR_DIE(BF_GetBlock(fd, 0, block));	
+	if(BF_GetBlock(fd, 0, block) != BF_OK)	return NULL;	
 	
 
 	// check if it is a hash file
@@ -84,8 +72,10 @@ HT_info* HT_OpenFile(char *fileName) {
 		printf("This file is not a HashFile.\n");
 		return NULL;
 	}
-	
-	CALL_OR_DIE(BF_UnpinBlock(block));
+
+	data->fileDesc = fd;
+	BF_Block_SetDirty(block);
+	// if(BF_UnpinBlock(block) != BF_OK)  return NULL;
 	BF_Block_Destroy(&block);
 
 	return data;
@@ -95,11 +85,11 @@ HT_info* HT_OpenFile(char *fileName) {
 int HT_CloseFile(HT_info* HT_info) {
 	int fd = HT_info->fileDesc;
 	CALL_OR_DIE(BF_CloseFile(fd));
-	printf("\nClosed file %d.\n",fd);
+	printf("Closed file %d.\n",fd);
     return 0;
 }
 
-void* create_block(BF_Block *block, int fd, int recordBucket) {
+static void* create_block(BF_Block *block, int fd, int recordBucket) {
 	void* data;
 	CALL_OR_DIE(BF_AllocateBlock(fd, block));
 	data = (void*)(BF_Block_GetData(block));
@@ -107,7 +97,7 @@ void* create_block(BF_Block *block, int fd, int recordBucket) {
 	return data;
 }
 
-void print_blocks(HT_info* ht_info) {
+static void print_blocks(HT_info* ht_info) {
 	int count;
 	char *fileName = ht_info->name;
 	int fd = ht_info->fileDesc;
@@ -118,14 +108,11 @@ void print_blocks(HT_info* ht_info) {
 	BF_GetBlockCounter(fd, &count);
 
 	for (int i=1; i<count; i++) {
-		printf("->PRINTING BLOCK %d, \n", i);
 		BF_GetBlock(fd, i, block);
 		void* data = (void*)(BF_Block_GetData(block));
 		HT_block_info* block_info = data;
-		printf("	records %d\n	next %d\n	bucket %d\n", block_info->recordCnt, block_info->nextBlock, block_info->bucket);
 		for (int j=0; j<block_info->recordCnt; j++) {
 			Record* records = (Record*)(data+sizeof(HT_block_info));
-			printf("	%d:  ", j);
 			printRecord(records[j]);
 		}
 	}
@@ -143,12 +130,12 @@ int HT_InsertEntry(HT_info* ht_info, Record record) {
 	BF_Block_Init(&block);
 
 	int* last_block = &(ht_info->bucket_end[recordBucket]); 
-	
-	
+	int previous = *last_block;
+	int flag = 0;
 	if (*last_block == -1) {
 		data = create_block(block, fd, recordBucket);  
 		CALL_OR_DIE(BF_GetBlockCounter(fd, &count));
-		*last_block = count-1; 
+		*last_block = count-1;
 	}
 	else {
 		// check if last bucket block is full
@@ -159,16 +146,11 @@ int HT_InsertEntry(HT_info* ht_info, Record record) {
 		HT_block_info* block_info = (HT_block_info*)data;
 
 		if (block_info->recordCnt >= blockCapacity) {
-			// we are about to access a new block
-			// so we settle the previous
-			CALL_OR_DIE(BF_GetBlockCounter(fd, &count));
-			block_info->nextBlock = count;
-			BF_Block_SetDirty(block); 
-			CALL_OR_DIE(BF_UnpinBlock(block));
-
 			data = create_block(block, fd, recordBucket);
-			*last_block = count;
+			CALL_OR_DIE(BF_GetBlockCounter(fd, &count));
+			*last_block = count-1;
 		}
+		else flag = 1;
 	}
 
 	Record* records = (Record*)(data+sizeof(HT_block_info));
@@ -176,6 +158,7 @@ int HT_InsertEntry(HT_info* ht_info, Record record) {
 	 
 	records[block_info->recordCnt] = record;
 	block_info->recordCnt++;
+	if (!flag) block_info->nextBlock = previous;
 	
 	BF_Block_SetDirty(block); 
 	CALL_OR_DIE(BF_UnpinBlock(block));
@@ -191,10 +174,9 @@ int HT_GetAllEntries(HT_info* ht_info, void *value) {
 	BF_Block_Init(&block);
 
 	int recordBucket = (*(int*)value) % ht_info->buckets;
-	int startingBlock = recordBucket + 1;
+	int  startingBlock = ht_info->bucket_end[recordBucket];
 
 	for (int i = startingBlock; i != -1;) {
-		printf("SEARCHING %d\n", i);
 		CALL_OR_DIE(BF_GetBlock(ht_info->fileDesc, i, block));
 		void* data = BF_Block_GetData(block);
 		HT_block_info* block_info = (HT_block_info*)data;
@@ -212,4 +194,17 @@ int HT_GetAllEntries(HT_info* ht_info, void *value) {
 
 	BF_Block_Destroy(&block);
 	return ans;
+}
+
+
+
+int HT_HashStatistics( char* filename ) {
+	printf("\nht stat\n");
+
+	HT_info *info = HT_OpenIndex(filename);
+	int fd = info->fileDesc;
+	
+
+	HT_CloseFile(info);
+	return 0;
 }
