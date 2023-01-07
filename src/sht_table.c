@@ -115,7 +115,6 @@ static void* create_block(BF_Block *block, int fd, int recordBucket) {
 
 static void print_blocks(HT_info* ht_info) {
 	int count;
-	char *fileName = ht_info->name;
 	int fd = ht_info->fileDesc;
 	
 	BF_Block *block;
@@ -239,7 +238,7 @@ int SHT_SecondaryGetAllEntries(HT_info* ht_info, SHT_info* sht_info, char* name)
 
 
 int HashStatistics(char* filename) {
-	if(strcmp(filename, name)== 0) {  
+	if(strcmp(filename, name) == 0) {  
 		return SHT_HashStatistics(filename);
 	}
 	else {  
@@ -249,6 +248,16 @@ int HashStatistics(char* filename) {
 
 
 int SHT_HashStatistics( char* filename ) {
-	printf("\nsht stat\n");
+	printf("\n-- Secondary Hash Table Stats --\n");
+	
+	HT_info *info = HT_OpenFile(filename);
+	int fd = info->fileDesc;
+	int count;
+
+	BF_GetBlockCounter(fd, &count);
+	printf("Total Blocks: %d\n", count);
+
+
+	HT_CloseFile(info);
 	return 0;
 }

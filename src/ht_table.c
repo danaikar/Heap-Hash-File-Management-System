@@ -75,7 +75,6 @@ HT_info* HT_OpenFile(char *fileName) {
 
 	data->fileDesc = fd;
 	BF_Block_SetDirty(block);
-	// if(BF_UnpinBlock(block) != BF_OK)  return NULL;
 	BF_Block_Destroy(&block);
 
 	return data;
@@ -108,25 +107,22 @@ int HT_InsertEntry(HT_info* ht_info, Record record) {
 	void* data;
 
 	int recordBucket = record.id % ht_info->buckets;
-	printf("%d\n", recordBucket);
 
 	BF_Block *block;
 	BF_Block_Init(&block);
 
-	// creating a chain of blocks that goes backwards
 	int* last_block = &(ht_info->bucket_end[recordBucket]); 
 	int previous = *last_block;
 	int flag = 0;
 
 	if (*last_block == -1) {
-		// if there is no block, other than the header
-		// create a new one 
+		// if there is no block in this bucket
 		data = create_block(block, fd, recordBucket);  
 		CALL_OR_DIE(BF_GetBlockCounter(fd, &count));
 		*last_block = count-1;
 	}
 	else {
-		// check if last bucket block is full
+		// check if last bucket is full
 		CALL_OR_DIE(BF_GetBlock(fd, *last_block, block));
 		data = BF_Block_GetData(block);
 
@@ -187,10 +183,15 @@ int HT_GetAllEntries(HT_info* ht_info, void *value) {
 
 
 int HT_HashStatistics( char* filename ) {
-	printf("\nht stat\n");
+	printf("\n-- Primary Hash Table Stats --\n");
 
 	HT_info *info = HT_OpenFile(filename);
 	int fd = info->fileDesc;
+	int count;
+	
+	BF_GetBlockCounter(fd, &count);
+	printf("Total Blocks: %d\n", count);
+
 	
 
 	HT_CloseFile(info);
