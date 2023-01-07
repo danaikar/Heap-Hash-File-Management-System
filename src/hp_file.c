@@ -52,7 +52,7 @@ HP_info* HP_OpenFile(char *fileName) {
 
 	if(BF_OpenFile(fileName, &fd) != BF_OK)  return NULL;
 
-	// initialize a block as a copy of the header block
+	// initialize a block (header)
 	BF_Block_Init(&block);	
 	if(BF_GetBlock(fd, 0, block) != BF_OK)	return NULL;	
 	
@@ -100,10 +100,7 @@ int HP_InsertEntry(HP_info* hp_info, Record record) {
 		CALL_OR_DIE(BF_AllocateBlock(fd, block));
 		BF_GetBlock(fd, 1, block);
 		int* data = (int*)(BF_Block_GetData(block));
-		*(HP_block_info*)data = (HP_block_info){0};
-		
-		// BF_Block_SetDirty(block); 
-		// BF_UnpinBlock(block);		 
+		*(HP_block_info*)data = (HP_block_info){0}; 
 	}
 		
 	BF_GetBlockCounter(fd, &count);
@@ -155,7 +152,6 @@ int HP_GetAllEntries(HP_info* hp_info, int value) {
 	BF_GetBlockCounter(fd, &blocks_num);
 
 	for (int i = 1; i < blocks_num; ++i) {
-
 		BF_GetBlock(fd, i, block);
 		data = BF_Block_GetData(block);
 		Record* rec = data + sizeof(HP_block_info);

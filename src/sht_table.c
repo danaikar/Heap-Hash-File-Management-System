@@ -7,7 +7,6 @@
 #include "ht_table.h"
 #include "record.h"
 
-char name[15];
 
 #define CALL_OR_DIE(call)       \
 {                               \
@@ -19,22 +18,26 @@ char name[15];
 }
 
 
+
+// a hash function for strings
 uint hash_string(char* name) {
 	// djb2 hash function, απλή, γρήγορη, και σε γενικές γραμμές αποδοτική
     uint hash = 5381;
     for (char* s = name; *s != '\0'; s++)
-		hash = (hash << 5) + hash + *s;			// hash = (hash * 33) + *s. Το foo << 5 είναι γρηγορότερη εκδοχή του foo * 32.
+		hash = (hash << 5) + hash + *s;	
     return hash;
 }
 
 
+// a new struct similar to Record, but with only the information 
+// needed for the secondary index
 typedef struct Entry {
 	char name[15];
 	int block;
 } Entry;
 
+
 int SHT_CreateSecondaryIndex(char *sfileName,  int buckets, char* fileName) {
-	strcpy(name, fileName);
     int sfileDesc;
     BF_Block *block;
     char *data;
@@ -77,7 +80,7 @@ SHT_info* SHT_OpenSecondaryIndex(char *indexName){
 
 	if(BF_OpenFile(indexName, &fd) != BF_OK) return NULL;
 
-	// initialize a block as a copy of the header block
+	// initialize a block (header) 
 	BF_Block_Init(&block);	
 	if(BF_GetBlock(fd, 0, block) != BF_OK)	return NULL;	
 	
@@ -90,7 +93,6 @@ SHT_info* SHT_OpenSecondaryIndex(char *indexName){
 	}
 	data->fileDesc = fd;
 	BF_Block_SetDirty(block);
-	// if(BF_UnpinBlock(block) != BF_OK)  return NULL;
 	BF_Block_Destroy(&block);
 
 	return data;
@@ -105,6 +107,8 @@ int SHT_CloseSecondaryIndex(SHT_info* SHT_info) {
 }
 
 
+
+//-----------------------------------------------------------------------
 static void* create_block(BF_Block *block, int fd, int recordBucket) {
 	void* data;
 	CALL_OR_DIE(BF_AllocateBlock(fd, block));
@@ -112,26 +116,8 @@ static void* create_block(BF_Block *block, int fd, int recordBucket) {
 	*(HT_block_info*)data = (HT_block_info){0, -1, recordBucket};
 	return data;
 }
+//-----------------------------------------------------------------------
 
-static void print_blocks(HT_info* ht_info) {
-	int count;
-	int fd = ht_info->fileDesc;
-	
-	BF_Block *block;
-	BF_Block_Init(&block);
-
-	BF_GetBlockCounter(fd, &count);
-
-	for (int i=1; i<count; i++) {
-		BF_GetBlock(fd, i, block);
-		void* data = (void*)(BF_Block_GetData(block));
-		HT_block_info* block_info = data;
-		for (int j=0; j<block_info->recordCnt; j++) {
-			Record* records = (Record*)(data+sizeof(HT_block_info));
-			printRecord(records[j]);
-		}
-	}
-}
 
 
 
@@ -153,6 +139,7 @@ int SHT_SecondaryInsertEntry(SHT_info* sht_info, Record record, int block_id) {
 	int* last_block = &(sht_info->bucket_end[recordBucket]); 
 	int previous = *last_block;
 	int flag = 0;
+
 	// if there is no block, create one
 	if (*last_block == -1) {
 		data = create_block(block, fd, recordBucket);  
@@ -187,14 +174,13 @@ int SHT_SecondaryInsertEntry(SHT_info* sht_info, Record record, int block_id) {
 	return sht_info->bucket_end[recordBucket];
 }
 
+
+//----------------------------------------------------------------
 static int searchBlock(HT_info* ht_info, int id, char* name) {
 	BF_Block *block;
-
 	BF_Block_Init(&block);
-
 	CALL_OR_DIE(BF_GetBlock(ht_info->fileDesc, id, block));
 	void* data = BF_Block_GetData(block);
-	
 	Record* records = (Record*)(data + sizeof(HT_block_info));
 	HT_block_info* block_info = (HT_block_info*)data;
 
@@ -206,19 +192,22 @@ static int searchBlock(HT_info* ht_info, int id, char* name) {
 	BF_Block_Destroy(&block);
 	return 1;
 }
+//----------------------------------------------------------------
+
+
 
 int SHT_SecondaryGetAllEntries(HT_info* ht_info, SHT_info* sht_info, char* name) {
-	
 	if (name == NULL) return -1;
+
 	int ans = 0;
 	BF_Block* block;
 	BF_Block_Init(&block);
+
 	int recordBucket = hash_string(name) % sht_info->buckets;
 	int startingBlock = sht_info->bucket_end[recordBucket];
 
 	for (int i = startingBlock; i != -1;) {
 		CALL_OR_DIE(BF_GetBlock(sht_info->fileDesc, i, block));
-	
 		void* data = BF_Block_GetData(block);
 		SHT_block_info* block_info = (SHT_block_info*)data;
 		Entry* entries = (Entry*)(data + sizeof(SHT_block_info));
@@ -232,32 +221,62 @@ int SHT_SecondaryGetAllEntries(HT_info* ht_info, SHT_info* sht_info, char* name)
 		i = block_info->nextBlock;
 		ans++;
 	}
+
 	BF_Block_Destroy(&block);
 	return ans;
 }
 
 
-int HashStatistics(char* filename) {
-	if(strcmp(filename, name) == 0) {  
-		return SHT_HashStatistics(filename);
-	}
-	else {  
-		return HT_HashStatistics(filename);
-  	}
-}
 
 
-int SHT_HashStatistics( char* filename ) {
+
+//-----------------------------HASH STATISTICS-----------------------------//
+
+
+
+int SHT_HashStatistics( char* filename ) {		
 	printf("\n-- Secondary Hash Table Stats --\n");
 	
-	HT_info *info = HT_OpenFile(filename);
+	SHT_info *info = SHT_OpenSecondaryIndex(filename);
 	int fd = info->fileDesc;
 	int count;
 
 	BF_GetBlockCounter(fd, &count);
-	printf("Total Blocks: %d\n", count);
+	printf("Total Blocks: %d\n", count);  // question a
+	
+	BF_Block* block;
+	BF_Block_Init(&block);
+	
+	int hasOverflow = 0;
+	
+	for (int i=0; i<info->buckets; i++) {
+		int start = info->bucket_end[i];
 
+		int min = 0x3f3f3f3f, max = 0, average = 0;
+		int blocksVisited = 0;
 
-	HT_CloseFile(info);
+		for (int j=start; j!=-1;) {
+			CALL_OR_DIE(BF_GetBlock(fd, j, block));
+			void* data = BF_Block_GetData(block);
+			SHT_block_info* block_info = (SHT_block_info*)data;
+			
+			min = (block_info->recordCnt < min) ? block_info->recordCnt : min; 
+			max = (block_info->recordCnt > max) ? block_info->recordCnt : max; 
+			average += block_info->recordCnt;
+			
+			BF_UnpinBlock(block);
+			j = block_info->nextBlock;
+			blocksVisited++;
+		} 
+  
+		if (min = 0x3f3f3f3 && max == 0)
+			printf("Bucket: %d\n\tEmpty bucket :(\n", i);  // question b
+		else 
+			printf("Bucket: %d\n\tmin: %d\n\tmax: %d\n\taverage: %lf\n\toverflow blocks: %d\n", i, min, max, (double)(average)/blocksVisited, blocksVisited-1); // question c,d
+		if (blocksVisited-1) hasOverflow++;
+	}
+
+	printf("\n\nblocks per bucket: %lf\n\n%d buckets have overflow blocks\n", ((double)(count-1)/info->buckets), hasOverflow);  // question d
+	SHT_CloseSecondaryIndex(info);
 	return 0;
 }

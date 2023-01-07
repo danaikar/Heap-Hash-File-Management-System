@@ -6,7 +6,6 @@
 #include "hp_file.h"
 
 #define RECORDS_NUM 1000 // you can change it if you want
-#define GLOBAL_DEPT 2 // you can change it if you want
 #define FILE_NAME "data.db"
 
 #define CALL_OR_DIE(call)     \
@@ -21,8 +20,8 @@
 int main() {
   BF_Init(LRU);
 
-  HP_CreateFile("data.db",ID);
-  HP_info* info = HP_OpenFile("data.db");
+  HP_CreateFile(FILE_NAME);
+  HP_info* info = HP_OpenFile(FILE_NAME);
 
   Record record;
   srand(12569874);
@@ -30,14 +29,14 @@ int main() {
   printf("Insert Entries\n");
   for (int id = 0; id < RECORDS_NUM; ++id) {
     record = randomRecord();
-    //printRecord(record);
-    HP_InsertEntry(*info, record);
+    HP_InsertEntry(info, record);
   }
 
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
-  HP_GetAllEntries(* info, &id);
+  printf("\nSearching for: %d",id);
+  HP_GetAllEntries(info, id);
 
-  HP_CloseFile(* info);
+  HP_CloseFile(info);
   BF_Close();
 }

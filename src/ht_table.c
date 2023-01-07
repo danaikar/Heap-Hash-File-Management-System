@@ -34,6 +34,7 @@ int HT_CreateFile(char *fileName,  int buckets) {
 	data = BF_Block_GetData(block);
 	
 	HT_info temp;
+	// create an array with the last block of each bucket
 	for (int i = 0; i < buckets; i++) {
 		temp.bucket_end[i] = -1; // no blocks for this bucket yet
 	}
@@ -61,7 +62,7 @@ HT_info* HT_OpenFile(char *fileName) {
 
 	if(BF_OpenFile(fileName, &fd) != BF_OK) return NULL;
 
-	// initialize a block as a copy of the header block
+	// initialize a block (header)
 	BF_Block_Init(&block);	
 	if(BF_GetBlock(fd, 0, block) != BF_OK)	return NULL;	
 	
@@ -151,6 +152,8 @@ int HT_InsertEntry(HT_info* ht_info, Record record) {
 }
 
 
+
+
 int HT_GetAllEntries(HT_info* ht_info, void *value) {
 	if (value == NULL) return -1;
 	int ans = 0;
@@ -160,12 +163,14 @@ int HT_GetAllEntries(HT_info* ht_info, void *value) {
 	int recordBucket = (*(int*)value) % ht_info->buckets;
 	int  startingBlock = ht_info->bucket_end[recordBucket];
 
+	// iterate the list of blocks 
 	for (int i = startingBlock; i != -1;) {
 		CALL_OR_DIE(BF_GetBlock(ht_info->fileDesc, i, block));
 		void* data = BF_Block_GetData(block);
 		HT_block_info* block_info = (HT_block_info*)data;
 		Record* records = (Record*)(data + sizeof(HT_block_info));
 
+		// and check if there is a record with id == value
 		for (int j = 0; j < block_info->recordCnt; j++) {
 			if (records[j].id == *(int*)value) {
 				printRecord(records[j]);
@@ -182,6 +187,12 @@ int HT_GetAllEntries(HT_info* ht_info, void *value) {
 
 
 
+
+
+//-----------------------------HASH STATISTICS-----------------------------//
+
+
+
 int HT_HashStatistics( char* filename ) {
 	printf("\n-- Primary Hash Table Stats --\n");
 
@@ -190,9 +201,41 @@ int HT_HashStatistics( char* filename ) {
 	int count;
 	
 	BF_GetBlockCounter(fd, &count);
-	printf("Total Blocks: %d\n", count);
+	printf("Total Blocks: %d\n", count); // question a
 
+	BF_Block* block;
+	BF_Block_Init(&block);
 	
+	int hasOverflow = 0;
+
+	for (int i=0; i<info->buckets; i++) {
+		int start = info->bucket_end[i];
+
+		int min = 0x3f3f3f3f, max = 0, average = 0;
+		int blocksVisited = 0;
+
+		for (int j=start; j!=-1;) {
+			CALL_OR_DIE(BF_GetBlock(fd, j, block));
+			void* data = BF_Block_GetData(block);
+			HT_block_info* block_info = (HT_block_info*)data;
+			
+			min = (block_info->recordCnt < min) ? block_info->recordCnt : min; 
+			max = (block_info->recordCnt > max) ? block_info->recordCnt : max; 
+			average += block_info->recordCnt;
+			
+			BF_UnpinBlock(block);
+			j = block_info->nextBlock;
+			blocksVisited++;
+		} 
+  
+		if (min = 0x3f3f3f3 && max == 0)
+			printf("Bucket: %d\n\tEmpty bucket :(\n", i);  // question b
+		else 
+			printf("Bucket: %d\n\tmin: %d\n\tmax: %d\n\taverage: %lf\n\toverflow blocks: %d\n", i, min, max, (double)(average)/blocksVisited, blocksVisited-1); // question c,d
+		if (blocksVisited-1) hasOverflow++;
+	}
+
+	printf("\n\nblocks per bucket: %lf\n\n%d buckets have overflow blocks\n", ((double)(count-1)/info->buckets), hasOverflow);	// question d
 
 	HT_CloseFile(info);
 	return 0;

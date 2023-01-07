@@ -10,50 +10,44 @@
 #define FILE_NAME "data.db"
 #define INDEX_NAME "index.db"
 
-#define CALL_OR_DIE(call)   \
-{                           \
-  BF_ErrorCode code = call; \
-  if (code != BF_OK) {      \
-    BF_PrintError(code);    \
-    exit(code);             \
-  }                         \
-}
+#define CALL_OR_DIE(call)     \
+  {                           \
+    BF_ErrorCode code = call; \
+    if (code != BF_OK) {      \
+      BF_PrintError(code);    \
+      exit(code);             \
+    }                         \
+  }
 
 
 int main() {
-  remove("/mnt/c/Users/Danae/Documents/DBSM/Exercises.DB/data.db");
-  remove("/mnt/c/Users/Danae/Documents/DBSM/Exercises.DB/index.db");
+    srand(12569874);
+    BF_Init(LRU);
+    // Αρχικοποιήσεις
+    HT_CreateFile(FILE_NAME,10);
+    SHT_CreateSecondaryIndex(INDEX_NAME,10,FILE_NAME);
+    HT_info* info = HT_OpenFile(FILE_NAME);
+    SHT_info* index_info = SHT_OpenSecondaryIndex(INDEX_NAME);
 
-  srand(12569874);
-  BF_Init(LRU);
-  // Αρχικοποιήσεις
-  HT_CreateFile(FILE_NAME,10);
-  printf("HT CREATED\n");
-  SHT_CreateSecondaryIndex(INDEX_NAME,10,FILE_NAME);
-  HT_info* info = HT_OpenFile(FILE_NAME);
-  SHT_info* index_info = SHT_OpenSecondaryIndex(INDEX_NAME);
-  // Θα ψάξουμε στην συνέχεια το όνομα searchName
-  Record record=randomRecord();
-  char searchName[15];
-  strcpy(searchName, "Konstantina");
+    // Θα ψάξουμε στην συνέχεια το όνομα searchName
+    Record record=randomRecord();
+    char searchName[15];
+    strcpy(searchName, record.name);
 
-  // Κάνουμε εισαγωγή τυχαίων εγγραφών τόσο στο αρχείο κατακερματισμού τις οποίες προσθέτουμε και στο δευτερεύον ευρετήριο
-  printf("Insert Entries\n");
-  for (int id = 0; id < RECORDS_NUM; ++id) {
-      record = randomRecord();
-      int block_id = HT_InsertEntry(info, record);
-      SHT_SecondaryInsertEntry(index_info, record, block_id);
-      printRecord(record);
-  }
-  // Τυπώνουμε όλες τις εγγραφές με όνομα searchName
-  printf("RUN PrintAllEntries for name %s\n",searchName);
-  SHT_SecondaryGetAllEntries(info,index_info,searchName);
-  
-  // Κλείνουμε το αρχείο κατακερματισμού και το δευτερεύον ευρετήριο
-  SHT_CloseSecondaryIndex(index_info);
-  HT_CloseFile(info);  
-  BF_Close();
+    // Κάνουμε εισαγωγή τυχαίων εγγραφών τόσο στο αρχείο κατακερματισμού τις οποίες προσθέτουμε και στο δευτερεύον ευρετήριο
+    printf("Insert Entries\n");
+    for (int id = 0; id < RECORDS_NUM; ++id) {
+        record = randomRecord();
+        int block_id = HT_InsertEntry(info, record);
+        SHT_SecondaryInsertEntry(index_info, record, block_id);
+    }
+    // Τυπώνουμε όλες τις εγγραφές με όνομα searchName
+    printf("RUN PrintAllEntries for name %s\n",searchName);
+    SHT_SecondaryGetAllEntries(info,index_info,searchName);
 
-  HashStatistics(FILE_NAME);   
-  HashStatistics(INDEX_NAME);  
+    // Κλείνουμε το αρχείο κατακερματισμού και το δευτερεύον ευρετήριο
+    SHT_CloseSecondaryIndex(index_info);
+    HT_CloseFile(info);
+    //
+    BF_Close();
 }
