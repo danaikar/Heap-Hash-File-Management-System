@@ -89,6 +89,8 @@ int HT_CloseFile(HT_info* HT_info) {
     return 0;
 }
 
+
+//-------------------------------------------------------------------------//
 static void* create_block(BF_Block *block, int fd, int recordBucket) {
 	void* data;
 	CALL_OR_DIE(BF_AllocateBlock(fd, block));
@@ -96,27 +98,8 @@ static void* create_block(BF_Block *block, int fd, int recordBucket) {
 	*(HT_block_info*)data = (HT_block_info){0, -1, recordBucket};
 	return data;
 }
+//-------------------------------------------------------------------------//
 
-static void print_blocks(HT_info* ht_info) {
-	int count;
-	char *fileName = ht_info->name;
-	int fd = ht_info->fileDesc;
-	
-	BF_Block *block;
-	BF_Block_Init(&block);
-
-	BF_GetBlockCounter(fd, &count);
-
-	for (int i=1; i<count; i++) {
-		BF_GetBlock(fd, i, block);
-		void* data = (void*)(BF_Block_GetData(block));
-		HT_block_info* block_info = data;
-		for (int j=0; j<block_info->recordCnt; j++) {
-			Record* records = (Record*)(data+sizeof(HT_block_info));
-			printRecord(records[j]);
-		}
-	}
-}
 
 int HT_InsertEntry(HT_info* ht_info, Record record) {
     int fd = ht_info->fileDesc;
@@ -125,14 +108,19 @@ int HT_InsertEntry(HT_info* ht_info, Record record) {
 	void* data;
 
 	int recordBucket = record.id % ht_info->buckets;
+	printf("%d\n", recordBucket);
 
 	BF_Block *block;
 	BF_Block_Init(&block);
 
+	// creating a chain of blocks that goes backwards
 	int* last_block = &(ht_info->bucket_end[recordBucket]); 
 	int previous = *last_block;
 	int flag = 0;
+
 	if (*last_block == -1) {
+		// if there is no block, other than the header
+		// create a new one 
 		data = create_block(block, fd, recordBucket);  
 		CALL_OR_DIE(BF_GetBlockCounter(fd, &count));
 		*last_block = count-1;
@@ -201,7 +189,7 @@ int HT_GetAllEntries(HT_info* ht_info, void *value) {
 int HT_HashStatistics( char* filename ) {
 	printf("\nht stat\n");
 
-	HT_info *info = HT_OpenIndex(filename);
+	HT_info *info = HT_OpenFile(filename);
 	int fd = info->fileDesc;
 	
 
