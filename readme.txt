@@ -1,189 +1,59 @@
+About: 
+This DBMS project implements two primary storage mechanisms: heap files and hash-based files. It enables efficient record management by providing a range of functionalities, including file creation, entry insertion, and retrieval of records through both primary and secondary indexing. The system is developed with a focus on structured data access, making it suitable for educational purposes or as a foundation for database system prototypes.
+# Functions in DBMS Project
 
-HP_CreateFile():
-Η συνάρτηση HP_CreateFile χρησιμοποιείται για τη δημιουργία και κατάλληλη 
-αρχικοποίηση ενός άδειου αρχείου σωρού με όνομα που δινεται σαν ορισμα.
-Υστερα, δεσμευει και αρχικοποιει ενα block το οποιο ειναι η επικεφαλιδα 
-και εκει περιεχεται το ειδος του αρχειου το οποιο κωδικοποιειται με εναν
-ακεραιο (στη συγκεκριμενη περιπτωση 0), το αναγνωριστικο του αρχειου και το ονομα.
-Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται 0,ενώ σε διαφορετική περίπτωση -1.
+## HP_CreateFile()
+The `HP_CreateFile` function creates and initializes an empty heap file with the given name. It allocates and initializes a block to serve as the header, containing the file type (coded as 0), the file ID, and the name. If successful, it returns 0; otherwise, -1.
 
+## HP_OpenFile()
+The `HP_OpenFile` function opens the created heap file and reads the header from the first block. If the file is indeed a heap file, it returns a pointer to the header. On error, it returns `NULL`.
 
+## HP_CloseFile()
+This function closes the heap file. If successful, it returns 0; otherwise, -1.
 
-HP_OpenFile():
-Η συνάρτηση HP_OpenFile ανοίγει το αρχείο που δημιουργηθηκε και διαβάζει από το  
-πρώτο μπλοκ την πληροφορία που αφορά το αρχείο σωρού. Αν οντως το αρχειο ειναι  
-αρχειο σωρου επιστρεφει δεικτη στο struct που βρισκεται η επικεφαλιδα.
-Σε περίπτωση που συμβεί οποιοδήποτε σφάλμα, επιστρέφεται τιμή NULL.
+## HP_InsertEntry()
+The `HP_InsertEntry` function opens the file and checks how many blocks it contains. If the file contains only the header or if the current block is full, a new block is created. The record is then stored. It returns the block number on success, otherwise -1.
 
+## HP_GetAllEntries()
+This function opens the file, counts the blocks, and iterates through them (excluding the header) to find a record with the given ID. It prints the record if found and returns the number of blocks read. On error, it returns -1.
 
+---
 
-HP_CloseFile():
-Η συνάρτηση HP_CloseFile κλείνει το αρχείο που αφορα την πληροφορια που δοθηκε
-ως ορισμα. Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται 0, ενώ σε 
-διαφορετική περίπτωση -1. 
+## HT_CreateFile()
+The `HT_CreateFile` function creates and initializes an empty hash file with a given name, bucket count, and records per block. The buckets are represented as a list of blocks, and the end of each bucket list is stored in `bucket_end`. On success, it returns 0, otherwise -1.
 
+## HT_OpenFile()
+The `HT_OpenFile` function opens the hash file and reads the header. If it is a hash file, it returns a pointer to the header. On error, it returns `NULL`.
 
+## HT_CloseFile()
+This function closes the hash file. If successful, it returns 0; otherwise, -1.
 
-HP_InsertEntry():
-Η συνάρτηση HP_InsertEntry ανοιγει το αρχείο που αφορα την πληροφορια που
-δοθηκε ως ορισμα και μετρα με την καταλληλη συναρτηση ποσα blocks περιεχει.
-Αν ο αριθμος αυτος ειναι 1, δηλαδη το αρχειο εχει μονο επικεφαλιδα,
-δημιουργει ενα καινουριο block. To ιδιο συμβαινει και αν το record δεν 
-χωραει γιατι το block εχει γεμισει, οποτε πρεπει να δημιουργηθει ενα καινουριο.
-Οταν συμβουν οι ελεγχοι αυτοι, πηγαινει στην  καταλληλη θεση, που ειναι 
-σιγουρα μετα απο την επικεφαλίδα και αποθηκευει την εγγραφη. Σε περίπτωση που 
-εκτελεστεί επιτυχώς, επιστρέφεταιο αριθμός του block στο οποίο έγινε η εισαγωγή, 
-ενώ σε διαφορετική περίπτωση -1.
+## HT_InsertEntry()
+The `HT_InsertEntry` function opens the file, hashes the record to find the corresponding bucket, and adds the record to the last block of that bucket. If necessary, a new block is allocated. It returns the block number on success, otherwise -1.
 
+## HT_GetAllEntries()
+This function opens the file, finds the corresponding bucket based on the given value, and searches backward through the blocks for a matching record. It prints the record if found and returns the number of blocks read. On error, it returns -1.
 
+---
 
-HP_GetAllEntries():
-Η συνάρτηση HP_GetAllEntries ανοιγει το αρχείο που αφορα την πληροφορια που
-δοθηκε ως ορισμα και μετρα με την καταλληλη συναρτηση ποσα blocks περιεχει.
-Μετα κανει iterate τα blocks (εκτος του header) και κοιταει αν υπαρχει εγγραφη
-με id ιδιο με αυτο που δοθηκε ως ορισμα. Στην περίπτωση αυτη εκτυπωνει την εγγραφη και
-επιστρέφει το πλήθος των blocks που διαβάστηκαν, ενώ σε περίπτωση λάθους επιστρέφει -1.
+## SHT_CreateFile()
+The `SHT_CreateFile` function creates and initializes an empty secondary index hash file with a given name, bucket count, and records per block. It returns 0 on success and -1 otherwise.
 
+## SHT_OpenSecondaryIndex()
+This function opens the secondary index hash file and reads the header. It returns a pointer to the header if successful, otherwise `NULL`.
 
+## SHT_CloseSecondaryIndex()
+The function closes the secondary index file. On success, it returns 0; otherwise -1.
 
+## SHT_InsertEntry()
+This function hashes the given string and finds the corresponding bucket. If needed, it allocates a new block and stores the record. It returns the block number on success, otherwise -1.
 
+## SHT_GetAllEntries()
+This function searches the secondary index for records with the given value and prints them. It returns the number of blocks read or -1 on error.
 
+---
 
----------------------------------------------------------------------------------------
+## Statistics Functions
 
+The `stat_main.c` file handles the creation of the hash files and insertion of records. It calls the `HashStatistics` function to print statistics about the hash files (either HT or SHT) by reading the first block and calling the appropriate statistics function.
 
-
-
-
-
-HΤ_CreateFile():
-Η συνάρτηση HΤ_CreateFile χρησιμοποιείται για τη δημιουργία και κατάλληλη 
-αρχικοποίηση ενός άδειου αρχείου κατακερματισμού με όνομα που δινεται σαν ορισμα.
-Υστερα, δεσμευει και αρχικοποιει ενα block το οποιο ειναι η επικεφαλιδα και 
-εκει περιεχεται το ειδος του αρχειου το οποιο κωδικοποιειται με εναν ακεραιο 
-(στη συγκεκριμενη περιπτωση 0), το αναγνωριστικο του αρχειου, το ονομα,
-ο αριθμος των buckets(δινεται ως ορισμα) και ο αριθμος των
-records ανα block.
-Για τα buckets αρχικά δεν δεσμεύεται κανένα block. Τα buckets αναπαριστούνται ως list από blocks.
-Ο πίνακας bucket_end, έχει για το κάθε bucket το τελευταίο block της λίστας και το κάθε block δείχνει
-στο προηγούμενό του. Έτσι κατά την εισαγωγή χρειάζεται να ανοίξουμε μόνο ένα block και να μην κάνουμε
-iterate όλη την λίστα. Στην αρχή είναι bucket_end[i] = -1 για κάθε i, που σημαίνει πως δεν έχει φτιαχτεί
-κάποιο block για αυτό το bucket ακόμη (δηλαδή το bucket είναι άδειο).
-Η συνάρτηση σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται 0, ενώ σε διαφορετική περίπτωση -1.
-
-
-
-HΤ_OpenFile():
-Η συνάρτηση HΤ_OpenFile ανοίγει το αρχείο που δημιουργηθηκε και διαβάζει από το πρώτο 
-μπλοκ την πληροφορία που αφορά το αρχείο κατακερματισμού. Αν οντως το αρχειο ειναι αρχειο 
-κατακερματισμού, επιστρεφει δεικτη στο struct που βρισκεται η επικεφαλιδα.
-Σε περίπτωση που συμβεί οποιοδήποτε σφάλμα, επιστρέφεται τιμή NULL.
-
-
-
-HΤ_CloseFile():
-Η συνάρτηση HΤ_CloseFile κλείνει το αρχείο που αφορα την πληροφορια που δοθηκε
-ως ορισμα. Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται 0, ενώ σε 
-διαφορετική περίπτωση -1. 
-
-
-
-HΤ_InsertEntry():
-Η συνάρτηση HΤ_InsertEntry ανοιγει το αρχείο που αφορα την πληροφορια που
-δοθηκε ως ορισμα και βρισκει το bucket (έστω b) στο οποιο κανει hash το record.
-Στη συνέχεια κοιτάμε στον πίνακα bucket_end[b] για να βρούμε το τελευταίο block του bucket.
-Αν αυτό έχει γεμίσει ή αν το bucket είναι άδειο (δηλαδή δεν έχει κανένα block ακόμη), τότε
-κάνουμε allocate ένα ακόμη block που γίνεται το τελευταίο στη λίστα. Βάζουμε εκεί το record
-και αλλάζουμε το bucket end. Διαφορετικά απλώς προσθέτουμε το record στο τελευταίο block.
-Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται ο αριθμός του block στο οποίο έγινε η 
-εισαγωγή, ενώ σε διαφορετική περίπτωση -1.
-
-
-
-HΤ_GetAllEntries():
-Η συνάρτηση HT_GetAllEntries ανοιγει το αρχείο που αφορα την πληροφορια που
-δοθηκε ως ορισμα και βρισκει το bucket στο οποιο κανει hash το συγκεκριμενο value
-που δοθηκε. Αφου βρει το bucket, πηγαινει στο τελευταιο του block και σειριακα
-(προς τα πισω) στην λίστα των blocks του bucket ελεγχει αν υπαρχει record με το ζητουμενο value.
-Στην περίπτωση αυτη εκτυπωνει την εγγραφη και επιστρέφει το πλήθος των blocks που 
-διαβάστηκαν, ενώ σε περίπτωση λάθους επιστρέφει -1.
-
-
-
-
-
-
----------------------------------------------------------------------------------------
-
-
-
-Ο τρόπος που χειρίζεται τα buckets και τα records η SHT είναι παρόμοιος με την HT,
-ωστόσο δεν εισάγουμε records αλλα ενα struct entry {record name, block in HT}.
-
-
-SHΤ_CreateFile():
-Η συνάρτηση SHΤ_CreateFile χρησιμοποιείται για τη δημιουργία και κατάλληλη 
-αρχικοποίηση ενός άδειου αρχείου κατακερματισμού με όνομα που δινεται σαν ορισμα.
-Υστερα, δεσμευει και αρχικοποιει ενα block το οποιο ειναι η επικεφαλιδα και 
-εκει περιεχεται το ειδος του αρχειου το οποιο κωδικοποιειται με εναν ακεραιο 
-(στη συγκεκριμενη περιπτωση 2),το αναγνωριστικοτου ερχειου, το ονομα,
-ο αριθμος των buckets(δινεται ως ορισμα) και ο αριθμος των records ανα block. 
-Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται 0,ενώ σε διαφορετική περίπτωση -1.
-
-
-
-SHT_OpenSecondaryIndex():
-Η συνάρτηση SHΤ_OpenFile ανοίγει το αρχείο που δημιουργηθηκε και διαβάζει από το πρώτο 
-μπλοκ την πληροφορία που αφορά το  δευτερεύον ευρετήριο κατακερματισμού. Αν οντως το αρχειο 
-ειναι δευτερεύον ευρετήριο κατακερματισμού, επιστρεφει δεικτη στο struct που βρισκεται η επικεφαλιδα.
-Σε περίπτωση που συμβεί οποιοδήποτε σφάλμα, επιστρέφεται τιμή NULL.
-
-
-
-SHT_CloseSecondaryIndex():
-Η συνάρτηση SHΤ_CloseFile κλείνει το αρχείο που αφορα την πληροφορια που δοθηκε
-ως ορισμα. Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται 0, ενώ σε 
-διαφορετική περίπτωση -1. 
-
-
-
-SHΤ_InsertEntry():
-Η συνάρτηση SHΤ_InsertEntry ανοιγει το αρχείο που αφορα την πληροφορια που
-δοθηκε ως ορισμα και βρισκει το bucket (έστω b) στο οποιο κανει hash το record.
-Το hash του string γίνεται με την συνάρτηση hash_string.
-Στη συνέχεια κοιτάμε στον πίνακα bucket_end[b] για να βρούμε το τελευταίο block του bucket.
-Αν αυτό έχει γεμίσει ή αν το bucket είναι άδειο (δηλαδή δεν έχει κανένα block ακόμη), τότε
-κάνουμε allocate ένα ακόμη block που γίνεται το τελευταίο στη λίστα. Βάζουμε εκεί το record
-και αλλάζουμε το bucket end. Διαφορετικά απλώς προσθέτουμε το record στο τελευταίο block.
-Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεταιο αριθμός του block στο οποίο έγινε η 
-εισαγωγή, ενώ σε διαφορετική περίπτωση -1.
-
-
-
-SHΤ_GetAllEntries():
-Η συνάρτηση SHT_GetAllEntries ανοιγει το αρχείο που αφορα την πληροφορια που
-δοθηκε ως ορισμα και βρισκει το bucket στο οποιο κανει hash το συγκεκριμενο value
-που δοθηκε. Αφου βρει το bucket, πηγαινει στο τελευταιο του block και σειριακα
-(προς τα πισω) στη λίστα των blocks. Αν βρει entry με ισοδύναμο όνομα με αυτό που δώθηκε,
-καλεί την συνάρτηση searchBlock που ανοίγει το HT αρχείο και ψάχνει στο block που δώθηκε
-το συγκεκριμένο record. Εκτυπωνει τις εγγραφες αυτες και επιστρέφει το πλήθος των blocks  
-που διαβάστηκαν, ενώ σε περίπτωση λάθους επιστρέφει -1.
-
-
-
-
-
-
----------------------------------------------------------------------------------------
-
-
-
-
-
-
-stat_main.c:
-Το αρχείο που είναι υπεύθυνο για την εκτύπωση των στατιστικών. Δημιουργεί ένα αρχείο HT και 
-ένα αρχείο SHT, κάνει διαδοχικά inserts και στην συνέχεια καλεί την συνάρτηση int 
-HashStatistics(char* filename). Η HashStatistics ανοίγει το αρχείο, κοιτάει στο 1ο block, ελέγχει 
-αν είναι τύπου HT ή SHT και καλεί αναλόγως τις HT_HashStatistics, SHT_HashStatistics που βρίσκονται 
-στα ht_table.h και sht_table.h αντίστοιχα.
