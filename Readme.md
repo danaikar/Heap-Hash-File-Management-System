@@ -1,59 +1,86 @@
-**About:**  
-This DBMS project implements two primary storage mechanisms: heap files and hash-based files. It enables efficient record management by providing a range of functionalities, including file creation, entry insertion, and retrieval of records through both primary and secondary indexing. The system is developed with a focus on structured data access, making it suitable for educational purposes or as a foundation for database system prototypes.  
+# Database Indexing using Heap Files & Hash Tables
+
+## Overview
+This project was developed for the **Database Systems Implementation** course at the National and Kapodistrian University of Athens. It focuses on understanding the internal workings of database systems, specifically block-level storage management, record-level management, and the role of indexing in improving performance.
+
+The project includes the implementation of:
+- **Heap File (HP) System**
+- **Static Hash Table (HT) System**
+- **Secondary Hash Table (SHT) System**
+
+All operations are built on top of the provided **Block File library (`bf.h`)**, which simulates disk block accesses, mimicking how database systems manage data storage on disk.
 
 ---
 
-**Functions in DBMS Project:**  
-**HP_CreateFile()**  
-The `HP_CreateFile` function creates and initializes an empty heap file with the given name. It sets up a header block containing file type, file ID, and name. Returns 0 on success, otherwise -1.  
+## Components
 
-**HP_OpenFile()**  
-This function opens the heap file and reads the header. If valid, it returns a pointer to the header. On failure, returns `NULL`.  
-
-**HP_CloseFile()**  
-Closes the file. Returns 0 on success, otherwise -1.
-
-**HP_InsertEntry()**  
-Inserts a record into the heap file. Allocates new blocks if necessary. Returns the block number on success, otherwise -1.  
-
-**HP_GetAllEntries()**    
-Searches and prints records matching a given ID. Returns the number of blocks read or -1 on error.  
+### 1. Heap File (HP)
+Implements a heap-based file organization where records are stored in no particular order. Supports:
+- File creation and opening
+- Record insertion, deletion, and searching
+- File closing
 
 ---
 
-**HT_CreateFile()**  
-Creates and initializes a hash file with the given parameters. Returns 0 on success, otherwise -1.  
-
-**HT_OpenFile()**  
-Opens a hash file and reads its header. Returns a pointer to the header if successful, otherwise `NULL`.  
-
-**HT_CloseFile()**  
-Closes the hash file. Returns 0 on success, otherwise -1.  
-
-**HT_InsertEntry()**  
-Inserts a record into the appropriate bucket using hashing. Allocates new blocks if needed. Returns the block number on success, otherwise -1.  
-
-**HT_GetAllEntries()**  
-Finds and prints records matching a hash value. Returns the number of blocks read or -1 on error.  
+### 2. Static Hash Table (HT)
+Implements static hashing to enable efficient access to records based on their key. Includes:
+- Index file creation
+- Record insertion, deletion, and retrieval
+- File closing
 
 ---
 
-**SHT_CreateFile()**  
-Creates and initializes a secondary index hash file. Returns 0 on success, otherwise -1.  
-
-**SHT_OpenSecondaryIndex()**  
-Opens a secondary index hash file. Returns a pointer to the header if successful, otherwise `NULL`.  
-
-**SHT_CloseSecondaryIndex()**  
-Closes the secondary index file. Returns 0 on success, otherwise -1.  
-
-**SHT_InsertEntry()**  
-Inserts a record into the secondary index using hashing. Allocates new blocks if necessary. Returns the block number on success, otherwise -1.  
-
-**SHT_GetAllEntries()**  
-Searches for and prints records from the secondary index. Returns the number of blocks read or -1 on error.  
+### 3. Secondary Hash Table (SHT)
+Provides secondary indexing on the `surname` attribute, allowing:
+- Creation of secondary index files
+- Insertion and searching of records using secondary keys
+- Linking to primary hash tables
 
 ---
 
-**stat_main.c**  
-Handles the creation of hash files and inserts records. It calls `HashStatistics` to generate statistics for both HT and SHT files, depending on the file type.  
+### 4. Hash Statistics
+Includes a utility function to analyze hash table performance by reporting:
+- Number of blocks in the file
+- Record distribution per bucket
+- Overflow block usage
+
+---
+
+## Data Structures
+
+Records have the following structure:
+```c
+typedef struct {
+    int id;
+    char name[15];
+    char surname[25];
+    char address[50];
+} Record;
+```
+Additional metadata structures (`HP_info`, `HT_info`, `SHT_info`) maintain information needed to manage each file type.
+
+---
+
+## Dependencies
+- **C Language**
+- **Block File Library (`bf.h`)** for simulating low-level block-based disk operations
+- Unix/Linux environment
+
+---
+
+## Compilation
+Compile using:
+```bash
+make
+```
+
+---
+
+## Usage
+Run the files created in build.
+
+---
+
+## Authors
+• [Panagiotis Chatzimichos](https://github.com/pchatz000)\
+• [Danae Karageorgopoulou ](https://github.com/danaikar)
